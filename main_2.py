@@ -136,7 +136,7 @@ def estimate_iteratively_edm(X, Y):
         'n_hidden': 6,
         'batch_size': 512,
         'lr': 1e-3,
-        'sampling_batch_size': 2 ** 16,
+        'sampling_batch_size': 2 ** 17,
     }
     args = argparse.Namespace(**args_dict)
 
@@ -166,7 +166,7 @@ def estimate_iteratively_edm(X, Y):
 
     X_test_intervened = X_test_original.copy()
     X_test_intervened[:, -1] = intervention[0]
-    num_samples = 1000
+    num_samples = 2048
     X_test_normalized = (X_test_intervened - ds_curr.x1_mean) / ds_curr.x1_std
 
     samples = curr.sample(X_test_normalized, num_samples).cpu().numpy()
