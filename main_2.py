@@ -10,7 +10,7 @@ import os
 os.environ["KERAS_BACKEND"] = "torch"
 
 import numpy as np
-from dataset import HistoryDataset
+from dataset import HistoryDataset, MyDataGenerator
 from utils import plot_two_histograms_on_same, plot_histogram
 from diffusion_model import DDPM
 from edm import EDM, get_EDM
@@ -131,39 +131,43 @@ def estimate_iteratively_edm(X, Y):
     intervention = np.array([-5.0, -3.0, 0.0]) #np.array([5.0, 5.0, -2.0])    
 
     args_dict = {
-        'n_epoch': 40,
+        'n_epoch': 15,
         'hidden_dim': 256,
         'n_hidden': 6,
         'batch_size': 512,
-        'lr': 1e-3
+        'lr': 1e-3,
+        'sampling_batch_size': 2 ** 16,
     }
     args = argparse.Namespace(**args_dict)
 
     Y = Y[:, None]
     ds_prev = HistoryDataset(X[2], Y, keras=True)
+    data_len = ds_prev.__len__()
     y_mean, y_std = ds_prev.y_mean, ds_prev.y_std
     training_batched = torch.utils.data.DataLoader(ds_prev, batch_size=args.batch_size, shuffle=True )
 
     prev = get_EDM(cov_dim = X[2].shape[1], hidden_dim=args.hidden_dim, n_hidden=args.n_hidden, 
-                   data_len=ds_prev.__len__(), num_epochs=args.n_epoch, lr=args.lr, batch_size=args.batch_size, prev_model=None)
+                   data_len=data_len, num_epochs=args.n_epoch, lr=args.lr, batch_size=args.batch_size)
     prev.fit(training_batched, epochs=args.n_epoch, verbose=1)
 
     for i in range(2, 0, -1):
         print(f"Iteration {-i + 3}")
-        intervened_data = X[i]
+        
+        intervened_data = X[i].copy()
         intervened_data[:, -1] = intervention[i]
-        ds_curr = HistoryDataset(X[i-1], intervened_data, ds_prev.x_mean[-1], ds_prev.x_std[-1], keras=True)
-        training_batched = torch.utils.data.DataLoader(ds_curr, batch_size=args.batch_size, shuffle=True )
-        curr = get_EDM(cov_dim=X[2].shape[1], hidden_dim=args.hidden_dim, n_hidden=args.n_hidden,
-                       data_len=ds_curr.__len__(), num_epochs=args.n_epoch, lr=args.lr, batch_size=args.batch_size, prev_model=prev)
+        ds_curr = MyDataGenerator(X[i-1], intervened_data, last_dim_mean=ds_prev.x1_mean[-1], last_dim_std=ds_prev.x1_std[-1], batch_size=args.batch_size, model=prev, sampling_batch_size= args.sampling_batch_size)
 
-        curr.fit(training_batched, epochs=args.n_epoch, verbose=1)
+        curr = get_EDM(cov_dim=X[2].shape[1], hidden_dim=args.hidden_dim, n_hidden=args.n_hidden,
+                       data_len=data_len, num_epochs=args.n_epoch, lr=args.lr, batch_size=args.batch_size)
+
+        curr.fit(ds_curr, epochs=args.n_epoch, verbose=1)
         prev = curr
+        ds_prev = ds_curr
 
     X_test_intervened = X_test_original.copy()
     X_test_intervened[:, -1] = intervention[0]
     num_samples = 1000
-    X_test_normalized = (X_test_intervened - ds_curr.x_mean) / ds_curr.x_std
+    X_test_normalized = (X_test_intervened - ds_curr.x1_mean) / ds_curr.x1_std
 
     samples = curr.sample(X_test_normalized, num_samples).cpu().numpy()
     samples_normalized = samples * y_std + y_mean  # Rescale the samples
@@ -171,7 +175,7 @@ def estimate_iteratively_edm(X, Y):
 
 
 if __name__ == "__main__":
-    size = 100000
+    size = 131072 # 2**17
 
     X, Y = time_series_data(size, plot=True)
     #X_test = np.array([[-2., 3. , 2. , -3.0, 2.0, 0.0]]) #np.array([[0., -2. , 0. ,4.0, 2.0, 0.0]])

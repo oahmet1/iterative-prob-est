@@ -95,9 +95,9 @@ class EDM(keras.Model):
         covariate, cov2_or_output = data
 
         # If prev_model is set, use it for iterative training
-        if self.prev_model is not None:
-            with torch.no_grad():
-                cov2_or_output = keras.ops.stop_gradient(self.prev_model.sample(cov2_or_output, sample_each=1))
+        #if self.prev_model is not None:
+        #    with torch.no_grad():
+        #        cov2_or_output = keras.ops.stop_gradient(self.prev_model.sample(cov2_or_output, sample_each=1))
         
         loss = compute_loss(
             self.network, cov2_or_output, covariate, self.sigma_data, self.seed_generator, training=True
@@ -180,7 +180,7 @@ def velocity(model, x, y, t):
 def sample_target(n_samples):
     return make_moons(n_samples, noise=0.06)
 
-def get_EDM(cov_dim, hidden_dim, n_hidden, data_len, num_epochs, lr, batch_size, prev_model):
+def get_EDM(cov_dim, hidden_dim, n_hidden, data_len, num_epochs, lr, batch_size):
 
     n_total = num_epochs * data_len // batch_size  # Total number of gradient updates
     scheduled_lr = keras.optimizers.schedules.CosineDecay(
@@ -189,7 +189,7 @@ def get_EDM(cov_dim, hidden_dim, n_hidden, data_len, num_epochs, lr, batch_size,
         alpha=1e-8
     )
     optimizer = keras.optimizers.Adam(learning_rate=scheduled_lr)
-    prev = EDM(output_dim=1, cov_dim=cov_dim, n_hidden=n_hidden, hidden_dim=hidden_dim, prev_model=prev_model)  # sigma_data=ops.convert_to_tensor(ds.y_std.astype(np.float32))
+    prev = EDM(output_dim=1, cov_dim=cov_dim, n_hidden=n_hidden, hidden_dim=hidden_dim)  # sigma_data=ops.convert_to_tensor(ds.y_std.astype(np.float32))
     prev.compile(optimizer)
     prev.build((None, cov_dim + 1 + 1))
     return prev
