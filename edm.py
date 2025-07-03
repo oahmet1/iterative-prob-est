@@ -194,47 +194,6 @@ def get_EDM(cov_dim, hidden_dim, n_hidden, data_len, num_epochs, lr, batch_size)
     prev.build((None, cov_dim + 1 + 1))
     return prev
 
-def custom_train(model, prev_model, train_dataset, n_epochs):
-    """
-    Custom training loop for EDM model with epoch-level control.
-    
-    Args:
-        model: The EDM model to train
-        train_dataloader: DataLoader with training data
-        n_epochs: Number of epochs to train
-    
-    Returns:
-        Dictionary with training history
-    """
-    history = {"loss": []}
-    
-    for epoch in range(n_epochs):
-        # Add your custom epoch start logic here
-        
-        epoch_losses = []
-
-        #train_dataloader = 
-        
-        for batch_idx, (covariate, cov2_or_output) in enumerate(train_dataloader):
-            # Add your custom batch start logic here
-            
-            # Perform training step
-            loss_dict = model.train_step((covariate, cov2_or_output))
-            batch_loss = loss_dict['loss'].cpu().numpy()
-            epoch_losses.append(batch_loss)
-            
-            # Add your custom batch end logic here
-        
-        # Calculate average epoch loss
-        epoch_loss = np.mean(epoch_losses)
-        history["loss"].append(epoch_loss)
-        
-        # Add your custom epoch end logic here
-        
-        print(f"Epoch {epoch + 1}/{n_epochs}, Loss: {epoch_loss:.6f}")
-    
-    return history
-
 def main():
     n_samples = 2000
     target_samples, labels = sample_target(n_samples)
@@ -273,10 +232,8 @@ def main():
     edm.compile(optimizer)
     edm.build((None, 4))
     
-    #history = edm.fit(train_dataloader, epochs=n_epochs, verbose=2)
-    #plt.plot(history.history["loss"], marker="x")
-    history = custom_train(edm, train_dataloader, n_epochs)
-    plt.plot(history["loss"], marker="x")
+    history = edm.fit(train_dataloader, epochs=n_epochs, verbose=2)
+    plt.plot(history.history["loss"], marker="x")
     plt.xlabel("epoch")
     _ = plt.ylabel("loss")
     plt.show()

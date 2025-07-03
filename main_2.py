@@ -22,9 +22,10 @@ def time_series_conditional_data(X, sample_size=1000, plot=False):
     A_0, A_1, A_2 = X[3], X[4], X[5]
     X_0, X_1, X_2 = X[0], X[1], X[2]
 
-    A_3, A_4 = A_0, A_1
-    X_3 = iterate_X(X_0, X_1, X_2, A_0, A_1, A_2)
+    X_3 = iterate_X(X_0, X_1, X_2, A_0, A_1, A_2)  
+    A_3 = iterate_A(X_0, X_1, X_2, X_3, A_0, A_1, A_2)
     X_4 = iterate_X(X_1, X_2, X_3, A_1, A_2, A_3)
+    A_4 = iterate_A(X_1, X_2, X_3, X_4, A_1, A_2, A_3)
 
     m = 100
     means = np.array([-m + A_2, A_3 + X_2 + X_3 + X_4, m + A_4])  # shape (3,)
@@ -35,6 +36,7 @@ def time_series_conditional_data(X, sample_size=1000, plot=False):
     if plot:
         plot_histogram(Y)
     return Y
+
 
 def time_series_conditional_interventional_data(X, intervention, sample_size=1000, plot=False):
     A_0, A_1, A_2 = X[3], X[4], intervention[0]
@@ -55,6 +57,11 @@ def time_series_conditional_interventional_data(X, intervention, sample_size=100
         plot_histogram(Y)
     return Y
 
+def iterate_A(X_0, X_1, X_2, X_3, A_0, A_1, A_2):
+    coeff = np.array([-2.0, 2.0, -1.0, -0.5, -1.0, 2.0, 2.0])  # Coefficients for X_0, X_1, X_2, A_0, A_1, A_2 in order for calculating X_3
+    A_3 = coeff[0] * X_0 + coeff[1] * X_1 + coeff[2] * X_2 + coeff[3] * X_3 + coeff[4] * A_0 + coeff[5] * A_1 + coeff[6] * A_2
+    return A_3
+
 def iterate_X(X_0, X_1, X_2, A_0, A_1, A_2):
     coeff = np.array([1.0, -1.0, 1.0, 1.0, -1.0, -1.0])  # Coefficients for X_0, X_1, X_2, A_0, A_1, A_2 in order for calculating X_3
     X_3 = coeff[0] * X_0 + coeff[1] * X_1 + coeff[2] * X_2 + coeff[3] * A_0 + coeff[4] * A_1 + coeff[5] * A_2
@@ -65,9 +72,11 @@ def time_series_data(size, plot=False):
     A_0, A_1, A_2 = (np.random.normal(loc=0.0, scale=5, size=size) for _ in range(3))
     X_0, X_1, X_2 = (np.random.normal(loc=0.0, scale=3.0, size=size) for _ in range(3))
 
-    A_3, A_4 = A_0, A_1
-    X_3 = iterate_X(X_0, X_1, X_2, A_0, A_1, A_2)  
+    X_3 = iterate_X(X_0, X_1, X_2, A_0, A_1, A_2)
+    A_3 = iterate_A(X_0, X_1, X_2, X_3, A_0, A_1, A_2)
     X_4 = iterate_X(X_1, X_2, X_3, A_1, A_2, A_3)
+    A_4 = iterate_A(X_1, X_2, X_3, X_4, A_1, A_2, A_3)
+
 
     m = 100
     means = np.stack([-m + A_2, A_3 + X_2 + X_3 + X_4, m + A_4], axis=1)
@@ -131,7 +140,7 @@ def estimate_iteratively_edm(X, Y):
     intervention = np.array([-5.0, -3.0, 0.0]) #np.array([5.0, 5.0, -2.0])    
 
     args_dict = {
-        'n_epoch': 15,
+        'n_epoch': 25,
         'hidden_dim': 256,
         'n_hidden': 6,
         'batch_size': 512,
@@ -175,13 +184,13 @@ def estimate_iteratively_edm(X, Y):
 
 
 if __name__ == "__main__":
-    size = 131072 # 2**17
+    size = 2**18 # 2**17
 
     X, Y = time_series_data(size, plot=True)
-    #X_test = np.array([[-2., 3. , 2. , -3.0, 2.0, 0.0]]) #np.array([[0., -2. , 0. ,4.0, 2.0, 0.0]])
-    #intervention = np.array([-5.0, -3.0, 0.0]) #np.array([5.0, 5.0, -2.0])
+    X_test = np.array([[-2., 3. , 2. , -3.0, 2.0, 0.0]]) #np.array([[0., -2. , 0. ,4.0, 2.0, 0.0]])
+    intervention = np.array([-5.0, -3.0, 0.0]) #np.array([5.0, 5.0, -2.0])
 
-    #time_series_conditional_interventional_data(X_test[0], intervention, plot=True)
-    #time_series_conditional_data(X_test[0], plot=True)
-    
+    time_series_conditional_interventional_data(X_test[0], intervention, sample_size=4096, plot=True)
+    time_series_conditional_data(X_test[0], sample_size=4096, plot=True)
+
     estimate_iteratively_edm(X, Y)
